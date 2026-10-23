@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>링크판 교사</title>
+<link rel="manifest" href="teacher.webmanifest">
+<meta name="theme-color" content="#14233D">
+<link rel="icon" href="icon-teacher-192.png">
+<link rel="apple-touch-icon" href="icon-teacher-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login" id="login">
+  <div class="panel">
+    <div class="brand"><div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div><div><h1>링크판 교사</h1><p>시트의 설정 탭에 적은 비밀번호를 넣으세요.</p></div></div>
+    <form id="loginForm" class="field">
+      <label for="pw">교사 비밀번호</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500"><input type="checkbox" id="remember" checked style="width:20px;min-height:20px"> 이 기기에서 기억하기</label>
+      <button class="btn primary" type="submit" id="loginBtn">들어가기</button>
+      <p class="msg" id="loginMsg" role="alert"></p>
+    </form>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div class="brand"><div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div><div><h1>우리반 링크판</h1><p id="cls">교사 화면</p></div></div>
+    <div class="row">
+      <button class="btn" type="button" id="boardClass">학급 주소 QR 띄우기</button>
+      <a class="btn" href="index.html" target="_blank" rel="noopener">학생 화면 열기</a>
+      <button class="btn" type="button" id="logout">로그아웃</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>새 링크 올리기</h2>
+    <form class="form" id="addForm">
+      <div class="field f-period"><label for="period">교시</label><input id="period" placeholder="3교시" maxlength="20"></div>
+      <div class="field f-title"><label for="title">제목</label><input id="title" placeholder="예: 과학 실험 영상" maxlength="80" required></div>
+      <div class="field f-url"><label for="url">주소</label><input id="url" placeholder="https://" inputmode="url" required></div>
+      <button class="btn primary" type="submit" id="addBtn" style="min-height:46px">올리기</button>
+    </form>
+    <p class="hint">올린 링크는 학생 화면에 바로 나타나고, 다음 날 새벽에 지난링크 탭으로 옮겨집니다.</p>
+  </section>
+
+  <div class="cols">
+    <section class="main sec">
+      <div class="head"><h2>오늘의 링크 <span id="count" style="font-size:14px;font-weight:500;color:var(--muted)"></span></h2><span class="date" id="date"></span></div>
+      <div id="todayList"></div>
+    </section>
+    <aside class="side panel">
+      <h2>자주 쓰는 링크</h2>
+      <p class="hint">학생 화면에 늘 보이는 고정 링크예요.</p>
+      <ul class="fixed-list" id="fixedList"></ul>
+      <form id="fixedForm" style="display:flex;flex-direction:column;gap:8px">
+        <div class="field"><label for="fTitle">이름</label><input id="fTitle" maxlength="40" required placeholder="예: 하이클래스"></div>
+        <div class="field"><label for="fUrl">주소</label><input id="fUrl" inputmode="url" required placeholder="https://"></div>
+        <button class="btn" type="submit">고정 링크 추가</button>
+      </form>
+    </aside>
+  </div>
+</div>
+
+<div class="board" id="board" role="dialog" aria-modal="true" aria-label="QR 크게 보기">
+  <div class="big" id="bQr"></div>
+  <div class="info">
+    <span class="btag" id="bTag"></span>
+    <h2 id="bTitle"></h2>
+    <p class="say">태블릿 카메라로 QR을 찍거나,<br>바탕화면의 링크판 아이콘을 눌러 들어오세요.</p>
+    <div class="burl" id="bUrl"></div>
+    <div class="ctrl">
+      <button type="button" id="bPrev">이전</button>
+      <span class="pos" id="bPos"></span>
+      <button type="button" id="bNext">다음</button>
+      <button type="button" class="close" id="bClose">닫기</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="qrcode.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'linkpan-pw', pw = '';
+  var state = { today: [], fixed: [], date: '', className: '' };
+  var studentUrl = new URL('index.html', location.href).href;
+  var slides = [], idx = 0;
+
+  try { pw = localStorage.getItem(KEY) || ''; } catch (e) {}
+  if (pw) enter(pw, true); else $('pw').focus();
+
+  $('loginForm').addEventListener('submit', function (e) { e.preventDefault(); enter($('pw').value, false); });
+
+  function enter(p, silent) {
+    $('loginBtn').disabled = true; $('loginMsg').textContent = '';
+    LP.post({ action: 'check', pw: p }).then(function (data) {
+      pw = p;
+      if (!silent && $('remember').checked) { try { localStorage.setItem(KEY, p); } catch (e) {} }
+      $('login').hidden = true; $('app').hidden = false; render(data);
+    }).catch(function (err) {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      $('login').hidden = false; $('app').hidden = true;
+      $('loginMsg').textContent = err.message;
+    }).then(function () { $('loginBtn').disabled = false; });
+  }
+
+  $('logout').addEventListener('click', function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); });
+
+  function render(d) {
+    state = d;
+    $('cls').textContent = d.className + ' · 교사 화면';
+    $('date').textContent = LP.koDate(d.date);
+    $('count').textContent = d.today.length + '개';
+    var box = $('todayList');
+    if (!d.today.length) {
+      box.innerHTML = '<div class="empty">아직 올린 링크가 없어요. 위에서 첫 링크를 올려 보세요.</div>';
+    } else {
+      box.innerHTML = '<div class="grid">' + d.today.map(function (l, i) {
+        return '<article class="card"><div class="qr">' + LP.qrSvg(l.url) + '</div><div class="body">' +
+          '<span class="tag">' + LP.esc(l.period) + '</span><div class="title">' + LP.esc(l.title) + '</div>' +
+          '<div class="url">' + LP.esc(l.url) + '</div><div class="row" style="margin-top:4px">' +
+          '<button class="btn soft small" type="button" data-show="' + (i + 1) + '">QR 크게</button>' +
+          '<a class="btn small" href="' + LP.esc(LP.safeUrl(l.url)) + '" target="_blank" rel="noopener">열기</a>' +
+          '<button class="btn small" type="button" data-remove="' + LP.esc(l.id) + '" aria-label="' + LP.esc(l.title) + ' 내리기">내리기</button>' +
+          '</div></div></article>';
+      }).join('') + '</div>';
+    }
+    $('fixedList').innerHTML = d.fixed.length ? d.fixed.map(function (f) {
+      return '<li><span>' + LP.esc(f.title) + '</span><button class="btn small" type="button" data-unfix="' + LP.esc(f.id) + '" aria-label="' + LP.esc(f.title) + ' 빼기">빼기</button></li>';
+    }).join('') : '<li style="font-weight:500;color:var(--muted)">아직 없어요</li>';
+    slides = [{ period: '학급 주소', title: d.className + ' 링크판 들어오기', url: studentUrl }].concat(d.today);
+  }
+
+  function run(body, okMsg) {
+    return LP.post(Object.assign({ pw: pw }, body)).then(function (d) { render(d); if (okMsg) LP.toast(okMsg); })
+      .catch(function (err) { LP.toast(err.message); throw err; });
+  }
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    $('addBtn').disabled = true;
+    run({ action: 'add', period: $('period').value, title: $('title').value, url: $('url').value }, '올렸어요')
+      .then(function () { $('period').value = ''; $('title').value = ''; $('url').value = ''; $('title').focus(); })
+      .catch(function () {}).then(function () { $('addBtn').disabled = false; });
+  });
+  $('fixedForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    run({ action: 'addFixed', title: $('fTitle').value, url: $('fUrl').value }, '고정 링크를 추가했어요')
+      .then(function () { $('fTitle').value = ''; $('fUrl').value = ''; }).catch(function () {});
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.remove) { if (confirm('이 링크를 내릴까요? (지난링크 탭에 보관돼요)')) run({ action: 'remove', id: b.dataset.remove }, '내렸어요').catch(function () {}); }
+    else if (b.dataset.unfix) { if (confirm('이 고정 링크를 뺄까요?')) run({ action: 'removeFixed', id: b.dataset.unfix }, '뺐어요').catch(function () {}); }
+    else if (b.dataset.show) openBoard(+b.dataset.show);
+  });
+
+  // 전자칠판 크게 보기
+  function show(i) {
+    idx = (i + slides.length) % slides.length;
+    var s = slides[idx];
+    $('bQr').innerHTML = LP.qrSvg(s.url);
+    $('bTag').textContent = s.period; $('bTitle').textContent = s.title;
+    $('bUrl').textContent = s.url; $('bPos').textContent = (idx + 1) + ' / ' + slides.length;
+  }
+  function openBoard(i) {
+    show(i); $('board').classList.add('open'); $('bClose').focus();
+    var el = document.documentElement; if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+  }
+  function closeBoard() {
+    $('board').classList.remove('open');
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+  }
+  $('boardClass').addEventListener('click', function () { openBoard(0); });
+  $('bPrev').addEventListener('click', function () { show(idx - 1); });
+  $('bNext').addEventListener('click', function () { show(idx + 1); });
+  $('bClose').addEventListener('click', closeBoard);
+  document.addEventListener('keydown', function (e) {
+    if (!$('board').classList.contains('open')) return;
+    if (e.key === 'ArrowRight') show(idx + 1);
+    else if (e.key === 'ArrowLeft') show(idx - 1);
+    else if (e.key === 'Escape') closeBoard();
+  });
+})();
+</script>
+</body>
+</html>
