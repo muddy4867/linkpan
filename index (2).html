@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6학년 1반 링크판</title>
+<link rel="manifest" href="student.webmanifest">
+<meta name="theme-color" content="#1F4E9C">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="링크판">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="s-wrap">
+  <header class="top">
+    <div class="brand"><div class="logo" style="width:44px;height:44px;border-radius:12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div><h1 id="cls" style="font-size:24px">링크판</h1></div>
+    <button class="btn" type="button" id="refresh" style="min-height:48px">새로고침</button>
+  </header>
+
+  <section class="install" id="install" hidden>
+    <b>처음 한 번만! 바탕화면에 아이콘 만들기</b>
+    <button class="btn primary" type="button" id="installBtn" hidden style="align-self:flex-start">앱 설치</button>
+    <div class="row" role="tablist" aria-label="기기 고르기">
+      <button class="btn small" type="button" role="tab" data-tab="pc">노트북 (크롬·웨일·엣지)</button>
+      <button class="btn small" type="button" role="tab" data-tab="ipad">아이패드</button>
+      <button class="btn small" type="button" role="tab" data-tab="android">갤럭시탭</button>
+    </div>
+    <p class="hint" id="guide" style="font-size:16px;color:var(--ink-2);white-space:pre-line"></p>
+  </section>
+
+  <section class="sec" style="display:flex;flex-direction:column;gap:12px">
+    <div class="head"><h2 style="font-size:20px">오늘의 링크</h2><span class="date" id="date"></span></div>
+    <div class="s-list" id="today"><div class="empty">불러오는 중이에요…</div></div>
+  </section>
+
+  <section class="sec" style="display:flex;flex-direction:column;gap:12px" id="fixedSec" hidden>
+    <h2 style="font-size:20px">늘 쓰는 링크</h2>
+    <div class="s-fixed" id="fixed"></div>
+  </section>
+
+  <p class="foot">로그인하지 않아도 돼요. 선생님이 링크를 올리면 새로고침을 눌러 보세요.</p>
+  <p class="foot" style="margin-top:0"><a href="teacher.html" style="color:var(--muted);font-size:13px">선생님 화면</a></p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="qrcode.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var GUIDES = {
+    pc: '위의 [앱 설치] 버튼을 누르세요.\n버튼이 안 보이면 주소창 오른쪽 끝의 설치 아이콘(모니터에 화살표 모양)을 누르면 돼요.',
+    ipad: 'Safari에서 공유 버튼(네모에 위쪽 화살표)을 누르고\n[홈 화면에 추가]를 고르세요.',
+    android: '크롬 오른쪽 위 점 세 개 메뉴에서\n[홈 화면에 추가] 또는 [앱 설치]를 누르세요.'
+  };
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  var ua = navigator.userAgent;
+  var isIpad = /iPad|iPhone/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isAndroid = /Android/.test(ua);
+  function pick(t) {
+    document.querySelectorAll('[data-tab]').forEach(function (b) {
+      var on = b.dataset.tab === t; b.classList.toggle('primary', on); b.setAttribute('aria-selected', on);
+    });
+    $('guide').textContent = GUIDES[t];
+  }
+  if (!standalone) { $('install').hidden = false; pick(isIpad ? 'ipad' : isAndroid ? 'android' : 'pc'); }
+  document.querySelectorAll('[data-tab]').forEach(function (b) { b.addEventListener('click', function () { pick(b.dataset.tab); }); });
+
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; $('installBtn').hidden = false; });
+  $('installBtn').addEventListener('click', function () {
+    if (!deferred) return; deferred.prompt();
+    deferred.userChoice.then(function () { deferred = null; $('installBtn').hidden = true; });
+  });
+  window.addEventListener('appinstalled', function () { $('install').hidden = true; LP.toast('바탕화면에 아이콘이 생겼어요'); });
+
+  var busy = false;
+  function load(manual) {
+    if (busy) return; busy = true; $('refresh').disabled = true; $('refresh').textContent = '불러오는 중…';
+    LP.list().then(function (d) {
+      $('cls').textContent = d.className + ' 링크판'; document.title = d.className + ' 링크판';
+      $('date').textContent = LP.koDate(d.date);
+      $('today').innerHTML = d.today.length ? d.today.map(function (l) {
+        return '<a class="s-link" href="' + LP.esc(LP.safeUrl(l.url)) + '" target="_blank" rel="noopener">' +
+          '<span class="tag" style="font-size:14px;padding:4px 10px;border-radius:8px">' + LP.esc(l.period) + '</span>' +
+          '<span class="t">' + LP.esc(l.title) + '</span><span class="go">열기</span></a>';
+      }).join('') : '<div class="empty">아직 오늘의 링크가 없어요. 선생님이 올리면 새로고침해 보세요.</div>';
+      $('fixedSec').hidden = !d.fixed.length;
+      $('fixed').innerHTML = d.fixed.map(function (f) {
+        return '<a href="' + LP.esc(LP.safeUrl(f.url)) + '" target="_blank" rel="noopener">' + LP.esc(f.title) + '</a>';
+      }).join('');
+      if (manual) LP.toast('새로 불러왔어요');
+    }).catch(function (err) {
+      if (!$('today').querySelector('.s-link')) $('today').innerHTML = '<div class="empty">' + LP.esc(err.message) + '</div>';
+      if (manual) LP.toast(err.message);
+    }).then(function () { busy = false; $('refresh').disabled = false; $('refresh').textContent = '새로고침'; });
+  }
+  $('refresh').addEventListener('click', function () { load(true); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(false); });
+  setInterval(function () { if (!document.hidden) load(false); }, 120000);
+  load(false);
+})();
+</script>
+</body>
+</html>

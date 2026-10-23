@@ -19,16 +19,23 @@
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + size + ' ' + size + '" shape-rendering="crispEdges" role="img" aria-label="QR 코드"><rect width="100%" height="100%" fill="#fff"/><path fill="#14233D" d="' + d + '"/></svg>';
   }
 
+  function withTimeout(url, opts, ms) {
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, ms);
+    if (ctl) opts.signal = ctl.signal;
+    return fetch(url, opts).then(function (r) { clearTimeout(timer); return r.json(); }, function (e) {
+      clearTimeout(timer);
+      throw new Error(e && e.name === 'AbortError' ? '연결이 느려요. 다시 눌러 보세요.' : '인터넷 연결을 확인해 주세요.');
+    });
+  }
   function list() {
     if (!ready) return Promise.reject(new Error('config.js에 웹 앱 주소가 아직 없어요.'));
-    return fetch(API + '?t=' + Date.now(), { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+    return withTimeout(API + '?t=' + Date.now(), { cache: 'no-store' }, 15000)
       .then(function (j) { if (!j.ok) throw new Error(j.error || '목록을 불러오지 못했어요.'); return j.data; });
   }
   function post(body) {
     if (!ready) return Promise.reject(new Error('config.js에 웹 앱 주소가 아직 없어요.'));
-    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json(); })
+    return withTimeout(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }, 20000)
       .then(function (j) { if (!j.ok) throw new Error(j.error || '저장하지 못했어요.'); return j.data; });
   }
   function koDate(iso) {

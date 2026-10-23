@@ -1,5 +1,5 @@
 // 앱 설치용 서비스 워커: 화면 파일만 저장하고, 링크 목록은 항상 새로 받아옵니다.
-var CACHE = 'linkpan-v1';
+var CACHE = 'linkpan-v2';
 var SHELL = ['./', 'index.html', 'teacher.html', 'style.css', 'common.js', 'config.js', 'qrcode.js', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); })); self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
